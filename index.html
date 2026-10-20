@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <title>Payments Board</title>
+  <style>
+    :root {
+      --bg: #070b1a;
+      --cyan: #00e5ff;
+      --purple: #b400ff;
+      --green: #39ff88;
+      --orange: #ffb300;
+      --text: #e8ecff;
+      --glass: rgba(12, 18, 40, 0.55);
+      --glass-border: rgba(0, 229, 255, 0.18);
+      --col-w: 110px;
+      --gap: 34px;
+      --cell-pad: 10px 8px;
+      --cell-fs: 13px;
+      --hdr-fs: 11px;
+      --heading-lg: clamp(1.35rem, 4vw, 2.1rem);
+      --heading-sm: clamp(0.95rem, 2.8vw, 1.25rem);
+    }
+
+    @media (max-width: 700px) {
+      :root {
+        --col-w: 66px;
+        --gap: 14px;
+        --cell-pad: 6px 4px;
+        --cell-fs: 12px;
+        --hdr-fs: 9px;
+        --heading-lg: 1.15rem;
+        --heading-sm: 0.85rem;
+      }
+      .orb { filter: blur(40px); opacity: 0.35; }
+      .cell, .hdr-cell { backdrop-filter: none; -webkit-backdrop-filter: none; }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow-x: hidden;
+    }
+
+    body {
+      min-height: 100dvh;
+      position: relative;
+    }
+
+    /* Drifting neon orbs */
+    .orbs {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(70px);
+      opacity: 0.45;
+      animation: drift 28s ease-in-out infinite;
+    }
+    .orb.c1 { width: 320px; height: 320px; background: var(--cyan); top: -80px; left: -60px; animation-duration: 32s; }
+    .orb.c2 { width: 280px; height: 280px; background: var(--purple); bottom: 10%; right: -40px; animation-duration: 26s; animation-delay: -8s; }
+    .orb.c3 { width: 220px; height: 220px; background: var(--green); top: 40%; left: 30%; animation-duration: 34s; animation-delay: -14s; opacity: 0.25; }
+
+    @keyframes drift {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(40px, -30px) scale(1.08); }
+      66% { transform: translate(-30px, 25px) scale(0.95); }
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      padding: 18px 12px 56px;
+      max-width: 100%;
+    }
+
+    /* Headings above the board */
+    .headings {
+      text-align: center;
+      margin-bottom: 18px;
+      padding: 0 8px;
+    }
+    .heading-line {
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      background: linear-gradient(90deg, var(--cyan), var(--purple), var(--green), var(--cyan));
+      background-size: 300% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: gradientShift 8s linear infinite;
+      text-shadow: 0 0 28px rgba(0, 229, 255, 0.25);
+      line-height: 1.25;
+      word-break: break-word;
+    }
+    .heading-line.lg { font-size: var(--heading-lg); margin-bottom: 4px; }
+    .heading-line.sm { font-size: var(--heading-sm); opacity: 0.9; }
+
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 300% 50%; }
+    }
+
+    /* Horizontal scroll for the grid */
+    .board-scroll {
+      overflow-x: auto;
+      overflow-y: visible;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 229, 255, 0.35) transparent;
+    }
+    .board-scroll::-webkit-scrollbar { height: 6px; }
+    .board-scroll::-webkit-scrollbar-thumb {
+      background: rgba(0, 229, 255, 0.35);
+      border-radius: 3px;
+    }
+
+    .board {
+      display: grid;
+      gap: 8px var(--gap);
+      width: max-content;
+      min-width: 100%;
+      padding: 4px 4px 12px;
+    }
+
+    /* Cells */
+    .cell, .hdr-cell {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: var(--cell-pad);
+      text-align: center;
+      font-size: var(--cell-fs);
+      line-height: 1.25;
+      word-break: break-word;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+      animation: floatY 4s ease-in-out infinite;
+      transition: box-shadow 0.35s ease, border-color 0.35s ease, background 0.35s ease;
+    }
+
+    .hdr-cell {
+      font-size: var(--hdr-fs);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--cyan);
+      border-color: rgba(0, 229, 255, 0.45);
+      box-shadow: 0 0 14px rgba(0, 229, 255, 0.15), inset 0 0 12px rgba(0, 229, 255, 0.06);
+      animation: none;
+    }
+
+    .gap-cell {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      backdrop-filter: none;
+      animation: none;
+      min-height: 8px;
+      padding: 0;
+    }
+
+    .row-gap {
+      height: 10px;
+      grid-column: 1 / -1;
+      background: transparent;
+    }
+
+    @keyframes floatY {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-7px); }
+    }
+
+    /* Change animations */
+    .cell.new-row {
+      animation: floatY 4s ease-in-out infinite, newGlow 1.8s ease-out;
+      border-color: rgba(57, 255, 136, 0.7);
+    }
+    @keyframes newGlow {
+      0% { box-shadow: 0 0 0 0 rgba(57, 255, 136, 0.7); background: rgba(57, 255, 136, 0.18); }
+      70% { box-shadow: 0 0 28px 6px rgba(57, 255, 136, 0.35); }
+      100% { box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25); background: var(--glass); }
+    }
+
+    .cell.flash-edit {
+      animation: floatY 4s ease-in-out infinite, editFlash 0.55s ease-in-out 3;
+    }
+    @keyframes editFlash {
+      0%, 100% { border-color: var(--glass-border); background: var(--glass); }
+      50% { border-color: rgba(255, 179, 0, 0.9); background: rgba(255, 179, 0, 0.22); box-shadow: 0 0 20px rgba(255, 179, 0, 0.4); }
+    }
+
+    .cell.col-flash {
+      animation: floatY 4s ease-in-out infinite, colFlash 1.2s ease-out;
+    }
+    @keyframes colFlash {
+      0% { border-color: rgba(180, 0, 255, 0.8); background: rgba(180, 0, 255, 0.2); }
+      100% { border-color: var(--glass-border); background: var(--glass); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .cell, .hdr-cell, .orb, .heading-line {
+        animation: none !important;
+      }
+      .cell.new-row, .cell.flash-edit, .cell.col-flash {
+        animation: none !important;
+        border-color: var(--green);
+      }
+    }
+
+    /* Footer status */
+    .status {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      background: rgba(7, 11, 26, 0.92);
+      border-top: 1px solid rgba(0, 229, 255, 0.15);
+      padding: 8px 12px;
+      font-size: 11px;
+      color: rgba(232, 236, 255, 0.7);
+      text-align: center;
+      letter-spacing: 0.03em;
+    }
+    .status .live { color: var(--green); font-weight: 600; }
+    .status .err { color: var(--orange); }
+
+    .empty-msg {
+      text-align: center;
+      padding: 40px 16px;
+      color: rgba(232, 236, 255, 0.55);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="orbs" aria-hidden="true">
+    <div class="orb c1"></div>
+    <div class="orb c2"></div>
+    <div class="orb c3"></div>
+  </div>
+
+  <div class="wrap">
+    <div class="headings" id="headings"></div>
+    <div class="board-scroll">
+      <div class="board" id="board" role="table" aria-label="Payments board"></div>
+    </div>
+    <div class="empty-msg" id="empty" hidden>Loading sheet…</div>
+  </div>
+
+  <div class="status" id="status">
+    <span class="live">Live</span> | connecting…
+  </div>
+
+  <script>
+    // ─── CONFIG ───────────────────────────────────────────────
+    // Set to your Worker URL (e.g. "https://payments-sheet.YOUR_SUBDOMAIN.workers.dev")
+    // Leave empty "" to try the Google export URL directly (may fail due to CORS).
+    const WORKER_URL = "";
+
+    const SHEET_ID = "1wJDOWDZL_7l-N-9yt5PhHJtVWsgF_mfbmlPohgr-Jyw";
+    const GID = "0";
+    const POLL_MS = 3000;
+
+    // Direct Google CSV export (add cache-buster in code)
+    const DIRECT_CSV = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+
+    // ─── CSV parser (handles quoted fields & commas inside quotes) ───
+    function parseCSV(text) {
+      const rows = [];
+      let row = [];
+      let field = "";
+      let i = 0;
+      let inQuotes = false;
+      const len = text.length;
+
+      while (i < len) {
+        const c = text[i];
+        if (inQuotes) {
+          if (c === '"') {
+            if (i + 1 < len && text[i + 1] === '"') {
+              field += '"';
+              i += 2;
+              continue;
+            }
+            inQuotes = false;
+            i++;
+            continue;
+          }
+          field += c;
+          i++;
+          continue;
+        }
+        if (c === '"') {
+          inQuotes = true;
+          i++;
+          continue;
+        }
+        if (c === ",") {
+          row.push(field);
+          field = "";
+          i++;
+          continue;
+        }
+        if (c === "\r") {
+          i++;
+          continue;
+        }
+        if (c === "\n") {
+          row.push(field);
+          field = "";
+          rows.push(row);
+          row = [];
+          i++;
+          continue;
+        }
+        field += c;
+        i++;
+      }
+      // last field / row
+      if (field.length || row.length) {
+        row.push(field);
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function cellText(v) {
+      if (v == null) return "";
+      return String(v).trim();
+    }
+
+    // Find header row: first row with ≥3 non-empty cells AND containing "payment" or "amount" (case-insensitive).
+    // Fallback: first row with ≥3 filled cells.
+    function findHeaderRowIndex(rows) {
+      let fallback = -1;
+      for (let r = 0; r < rows.length; r++) {
+        const row = rows[r];
+        let filled = 0;
+        let hasPay = false;
+        for (let c = 0; c < row.length; c++) {
+          const t = cellText(row[c]);
+          if (t) {
+            filled++;
+            const low = t.toLowerCase();
+            if (low.includes("payment") || low.includes("amount")) hasPay = true;
+          }
+        }
+        if (filled >= 3) {
+          if (fallback < 0) fallback = r;
+          if (hasPay) return r;
+        }
+      }
+      return fallback >= 0 ? fallback : 0;
+    }
+
+    // Determine used column range (first to last non-empty across all data rows + header)
+    function usedColumnRange(rows, headerIdx) {
+      let minC = Infinity;
+      let maxC = -1;
+      for (let r = headerIdx; r < rows.length; r++) {
+        const row = rows[r];
+        for (let c = 0; c < row.length; c++) {
+          if (cellText(row[c])) {
+            if (c < minC) minC = c;
+            if (c > maxC) maxC = c;
+          }
+        }
+      }
+      if (maxC < 0) return { minC: 0, maxC: 0 };
+      return { minC, maxC };
+    }
+
+    // Detect section breaks: a repeated first header text (e.g. second "S. No.") marks a new section.
+    // Insert a visual gap column before it unless the previous column is already empty.
+    function buildColumnMeta(headerRow, minC, maxC) {
+      const headers = [];
+      const isGap = []; // true = narrow visual gap track
+      let firstHeaderText = null;
+
+      for (let c = minC; c <= maxC; c++) {
+        const h = cellText(headerRow[c] || "");
+        if (firstHeaderText === null && h) firstHeaderText = h;
+
+        // Check if this looks like a repeated first header → section break
+        let sectionBreak = false;
+        if (firstHeaderText && h && h === firstHeaderText && c > minC) {
+          // Look back: if previous logical column is not already a gap we added, insert one
+          sectionBreak = true;
+        }
+
+        if (sectionBreak) {
+          // Only insert gap if the previous column is not empty/gap
+          const prevIdx = headers.length - 1;
+          if (prevIdx < 0 || !isGap[prevIdx]) {
+            headers.push(""); // gap column
+            isGap.push(true);
+          }
+        }
+
+        // Empty middle column stays as narrow gap (do not collapse)
+        const emptyCol = !h && !hasDataInColumnLater; // we'll refine after
+        headers.push(h || columnLetter(c));
+        isGap.push(false);
+      }
+
+      // Second pass: mark completely empty columns (no header & we already used letter) as gap tracks
+      // Actually per rules: keep empty middle columns as narrow gap tracks
+      return { headers, isGap, minC, maxC };
+    }
+
+    function columnLetter(idx) {
+      // 0 → A, 1 → B, ... 25 → Z, 26 → AA
+      let n = idx;
+      let s = "";
+      do {
+        s = String.fromCharCode(65 + (n % 26)) + s;
+        n = Math.floor(n / 26) - 1;
+      } while (n >= 0);
+      return "Column " + s;
+    }
+
+    // Check if any data row has content in column c (from headerIdx+1)
+    function columnHasData(rows, headerIdx, c) {
+      for (let r = headerIdx + 1; r < rows.length; r++) {
+        if (cellText(rows[r][c] || "")) return true;
+      }
+      return false;
+    }
+
+    function processSheet(rows) {
+      if (!rows || !rows.length) {
+        return { headings: [], headers: [], isGap: [], data: [], colCount: 0 };
+      }
+
+      const headerIdx = findHeaderRowIndex(rows);
+      const headingRows = rows.slice(0, headerIdx);
+
+      // Trim trailing completely blank rows only
+      let lastData = rows.length - 1;
+      while (lastData > headerIdx) {
+        const row = rows[lastData];
+        let any = false;
+        for (let c = 0; c < row.length; c++) {
+          if (cellText(row[c])) { any = true; break; }
+        }
+        if (any) break;
+        lastData--;
+      }
+      const dataRows = rows.slice(headerIdx + 1, lastData + 1);
+
+      const { minC, maxC } = usedColumnRange(rows, headerIdx);
+      const headerRow = rows[headerIdx] || [];
+
+      // Build columns with section gaps
+      const headers = [];
+      const isGap = [];
+      const srcCols = []; // maps display col → original sheet col index (-1 for gap)
+      let firstHeaderText = null;
+
+      for (let c = minC; c <= maxC; c++) {
+        const h = cellText(headerRow[c] || "");
+        if (firstHeaderText === null && h) firstHeaderText = h;
+
+        const isRepeatedFirst = firstHeaderText && h && h === firstHeaderText && c > minC;
+        if (isRepeatedFirst) {
+          // Insert gap unless previous is already empty/gap
+          const prevSrc = srcCols.length ? srcCols[srcCols.length - 1] : -2;
+          const prevEmpty = prevSrc >= 0 && !cellText(headerRow[prevSrc] || "") && !columnHasData(rows, headerIdx, prevSrc);
+          if (!prevEmpty && (srcCols.length === 0 || srcCols[srcCols.length - 1] !== -1)) {
+            headers.push("");
+            isGap.push(true);
+            srcCols.push(-1);
+          }
+        }
+
+        // Decide header label
+        let label = h;
+        if (!label) {
+          if (columnHasData(rows, headerIdx, c)) label = columnLetter(c);
+          else label = ""; // pure empty → gap
+        }
+
+        if (!label && !columnHasData(rows, headerIdx, c)) {
+          // Completely empty column → narrow gap track
+          headers.push("");
+          isGap.push(true);
+          srcCols.push(c); // still map so we keep the space
+        } else {
+          headers.push(label || columnLetter(c));
+          isGap.push(false);
+          srcCols.push(c);
+        }
+      }
+
+      // Build data matrix (display columns)
+      const data = dataRows.map((row) => {
+        return srcCols.map((src) => {
+          if (src < 0) return "";
+          return cellText(row[src] || "");
+        });
+      });
+
+      // Headings text (non-empty cells joined per row)
+      const headings = headingRows.map((row) => {
+        const parts = [];
+        for (let c = 0; c < row.length; c++) {
+          const t = cellText(row[c]);
+          if (t) parts.push(t);
+        }
+        return parts.join("  ");
+      }).filter(Boolean);
+
+      return { headings, headers, isGap, data, colCount: headers.length, srcCols };
+    }
+
+    // ─── State ────────────────────────────────────────────────
+    let prevSnapshot = null; // { headers, data, isGap }
+    let lastGoodHtml = null;
+    let pollTimer = null;
+
+    const boardEl = document.getElementById("board");
+    const headingsEl = document.getElementById("headings");
+    const statusEl = document.getElementById("status");
+    const emptyEl = document.getElementById("empty");
+
+    function setStatus(ok, timeStr) {
+      if (ok) {
+        statusEl.innerHTML = `<span class="live">Live</span> | updated ${timeStr} | green = new, orange = edited`;
+      } else {
+        statusEl.innerHTML = `<span class="err">Reconnecting…</span> | showing last good data`;
+      }
+    }
+
+    function timeNow() {
+      const d = new Date();
+      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+    }
+
+    function buildGridTemplate(isGap) {
+      return isGap.map((g) => (g ? "12px" : "var(--col-w)")).join(" ");
+    }
+
+    function render(snapshot, changes) {
+      const { headings, headers, isGap, data } = snapshot;
+      const { newRows, editedCells, newCols } = changes || { newRows: new Set(), editedCells: new Set(), newCols: new Set() };
+
+      // Headings
+      headingsEl.innerHTML = "";
+      headings.forEach((h, i) => {
+        const div = document.createElement("div");
+        div.className = "heading-line " + (i === 0 ? "lg" : "sm");
+        div.textContent = h; // textContent = safe
+        headingsEl.appendChild(div);
+      });
+
+      boardEl.style.gridTemplateColumns = buildGridTemplate(isGap);
+      boardEl.innerHTML = "";
+
+      // Header row
+      headers.forEach((h, c) => {
+        const el = document.createElement("div");
+        if (isGap[c]) {
+          el.className = "gap-cell";
+        } else {
+          el.className = "hdr-cell";
+          el.textContent = h;
+        }
+        boardEl.appendChild(el);
+      });
+
+      // Data rows
+      data.forEach((row, r) => {
+        const isBlankRow = row.every((v, c) => isGap[c] || !v);
+        if (isBlankRow) {
+          // small visible gap row
+          const gap = document.createElement("div");
+          gap.className = "row-gap";
+          gap.style.gridColumn = "1 / -1";
+          boardEl.appendChild(gap);
+          // still need to keep grid alignment? we skip cells for blank middle rows as a single spacer
+          return;
+        }
+
+        row.forEach((val, c) => {
+          const el = document.createElement("div");
+          if (isGap[c]) {
+            el.className = "gap-cell";
+          } else {
+            el.className = "cell";
+            el.textContent = val;
+            // staggered float delay
+            el.style.animationDelay = `${-((r * 7 + c * 3) % 40) / 10}s`;
+
+            const key = r + ":" + c;
+            if (newRows.has(r)) el.classList.add("new-row");
+            else if (editedCells.has(key)) el.classList.add("flash-edit");
+            else if (newCols.has(c)) el.classList.add("col-flash");
+          }
+          boardEl.appendChild(el);
+        });
+      });
+
+      emptyEl.hidden = true;
+    }
+
+    function diffSnapshots(prev, next) {
+      const newRows = new Set();
+      const editedCells = new Set();
+      const newCols = new Set();
+
+      if (!prev) {
+        // first load — no animation spam
+        return { newRows, editedCells, newCols };
+      }
+
+      // New columns
+      if (next.headers.length > prev.headers.length) {
+        for (let c = prev.headers.length; c < next.headers.length; c++) {
+          if (!next.isGap[c]) newCols.add(c);
+        }
+      }
+
+      // Row / cell changes (by index — good enough for live fee sheet)
+      const maxR = Math.max(prev.data.length, next.data.length);
+      for (let r = 0; r < maxR; r++) {
+        if (r >= prev.data.length) {
+          newRows.add(r);
+          continue;
+        }
+        if (r >= next.data.length) continue;
+        const pr = prev.data[r];
+        const nr = next.data[r];
+        const maxC = Math.max(pr.length, nr.length);
+        for (let c = 0; c < maxC; c++) {
+          if (next.isGap[c]) continue;
+          const pv = pr[c] || "";
+          const nv = nr[c] || "";
+          if (pv !== nv) editedCells.add(r + ":" + c);
+        }
+      }
+
+      return { newRows, editedCells, newCols };
+    }
+
+    function snapshotsEqual(a, b) {
+      if (!a || !b) return false;
+      if (a.headers.length !== b.headers.length) return false;
+      if (a.data.length !== b.data.length) return false;
+      for (let i = 0; i < a.headers.length; i++) {
+        if (a.headers[i] !== b.headers[i] || a.isGap[i] !== b.isGap[i]) return false;
+      }
+      for (let r = 0; r < a.data.length; r++) {
+        const ar = a.data[r];
+        const br = b.data[r];
+        if (ar.length !== br.length) return false;
+        for (let c = 0; c < ar.length; c++) {
+          if (ar[c] !== br[c]) return false;
+        }
+      }
+      return true;
+    }
+
+    async function fetchCSV() {
+      const bust = Date.now();
+      let url;
+      if (WORKER_URL) {
+        url = `${WORKER_URL}?t=${bust}`;
+      } else {
+        url = `${DIRECT_CSV}&t=${bust}`;
+      }
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return await res.text();
+    }
+
+    async function poll() {
+      try {
+        const text = await fetchCSV();
+        const rows = parseCSV(text);
+        const snap = processSheet(rows);
+
+        if (!snapshotsEqual(prevSnapshot, snap)) {
+          const changes = diffSnapshots(prevSnapshot, snap);
+          render(snap, changes);
+          prevSnapshot = snap;
+        }
+        setStatus(true, timeNow());
+      } catch (err) {
+        console.warn("Fetch failed:", err);
+        setStatus(false, timeNow());
+        if (!prevSnapshot) {
+          emptyEl.hidden = false;
+          emptyEl.textContent = "Cannot load sheet. Check CORS / Worker URL.";
+        }
+      }
+    }
+
+    // Start
+    emptyEl.hidden = false;
+    poll();
+    pollTimer = setInterval(poll, POLL_MS);
+
+    // Visibility: pause when tab hidden to be kind
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      } else {
+        poll();
+        if (!pollTimer) pollTimer = setInterval(poll, POLL_MS);
+      }
+    });
+  </script>
+</body>
+</html>
